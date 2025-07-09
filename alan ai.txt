@@ -1,0 +1,104 @@
+const coffee = [
+    {name: 'cappuccino', id: 'cappuccino'},
+    {name: 'latte', id: 'latte'},
+    {name: 'americano', id: 'americano'}
+];
+
+const dessert = [
+    {name: 'cheesecake', id: 'cheesecake'},
+    {name: 'brownie', id: 'brownie'},
+    {name: 'apple-pie', id: 'apple-pie'}
+];
+
+let coffeePattern = coffee.map(item => '${item.name}').join('|');
+let dessertPattern = dessert.map(item => '${item.name}').join('|');
+console.log(coffeePattern, dessertPattern);
+
+intent(noctx, 'What does this app do?', p => {
+    p.play('This is a coffee ordering app');
+});
+
+intent('What coffee do you have?', p => {
+    p.play('We have:');
+    for (let i = 0; i < coffee.length; i++) {
+        let item = coffee[i].name;
+        p.play({command: 'highlight', item: coffee[i].id});
+        p.play('${item}');
+        }
+});
+
+intent(`Get me (a|an) $(COFFEE ${coffeePattern})`,
+`One $(COFFEE ${coffeePattern}), (please|)`,
+`I (need|want) $(COFFEE ${coffeePattern})`, p => {
+p.userData.coffee = p.COFFEE.value;
+p.play({command: 'addCoffee', item: p.COFFEE.value});
+p.play('Adding one ${p.COFFEE.value} to your order', 'Sure', 'Here you go');
+p.play('Please choose a dessert');
+p.then(orderDessert);
+});
+
+let orderDessert = context(() => {
+intent(`Get me (a|an) $(DESSERT ${dessertPattern})`,
+`One $(DESSERT ${dessertPattern}), (please|)`, 
+`I (need|want) a $(DESSERT ${dessertPattern})`, p => {
+p.userData.dessert = p.DESSERT.value;
+p.play({command: 'addDessert', item: p.DESSERT.value});
+p.play('Your dessert is added', 'Sure', 'Here you go');
+p.play('What is your name');
+p.then(checkout);
+});
+});
+
+let checkout = context(() => {
+    intent('My name is $(NAME)', p => {
+    p.play({command: 'addName', name: p.NAME.value});
+    p.play('Thank You');
+    p.play('Please provide your address');
+});
+
+intent('My address is $(LOC)', p => {
+    p.play('Thanks');
+    p.play('Any comments?');
+});
+
+intent('My comment is $(COMMENT* (.+))', p => {
+p.play({command: 'addComment', comment: p.COMMENT.value});
+p.play('Thank you, will take a note');
+p.play('Is your order correct?');
+p.then(confirmorder);
+});
+});
+
+let confirmorder = context(() => {
+intent('Yes, (it is correct)', p => {
+p.play('Thank you');
+p.resolve();
+});
+
+intent('No, (I want to change it|)', p => {
+p.play('Sure, take your time');
+p.resolve();
+});
+
+fallback('You have to say Yes or No');
+});
+
+intent('What is in the cart?', p => {
+    const order = p.visual.order;
+    if (_.isEmpty(order)) {
+        p.play('You have not ordered anything');
+        return;
+    }
+    p.play('You have ordered:');
+    for (let product in p.visual.order) {
+        p.play(p.visual.order[product]);
+        }
+});
+
+projectAPI.getOrder = function(p, param, callback) {
+    p.play('Thank you for submitting your order');
+    p.play('Your order will be delivered in 10 minutes or less');
+};
+
+
+
